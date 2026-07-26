@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
+import { APP_VERSION } from "@/lib/version";
 import LogoutButton from "./LogoutButton";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -34,6 +35,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>
+      <footer className="mx-auto max-w-3xl px-4 py-4 text-center text-xs text-gray-400">
+        ShuttleStats v{APP_VERSION}
+      </footer>
     </div>
   );
 }

@@ -83,6 +83,12 @@ export default function MatchesPage() {
     loadData();
   }
 
+  function handleReset() {
+    setSelection(EMPTY_SELECTION);
+    setWinner("A");
+    setError(null);
+  }
+
   async function handleDelete(id: string) {
     if (!confirm("Delete this match result? This will affect the leaderboard.")) return;
     await fetch(`/api/matches/${id}`, { method: "DELETE" });
@@ -181,13 +187,24 @@ export default function MatchesPage() {
         )}
         {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
-        <button
-          type="submit"
-          disabled={!allSelected || hasDuplicates || saving}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-        >
-          {saving ? "Saving…" : "Save match"}
-        </button>
+        <div className="flex gap-2">
+          {allSelected && (
+            <button
+              type="submit"
+              disabled={hasDuplicates || saving}
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {saving ? "Saving…" : "Save match"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleReset}
+            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100"
+          >
+            Reset
+          </button>
+        </div>
       </form>
 
       <h2 className="mb-2 text-sm font-semibold text-gray-700">Recent matches</h2>
