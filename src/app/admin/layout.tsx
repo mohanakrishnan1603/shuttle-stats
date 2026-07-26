@@ -17,6 +17,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <header className="border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <nav className="flex gap-4 text-sm font-medium text-gray-600">
+            <Link href="/admin/leaderboard" className="hover:text-emerald-600">
+              Leaderboard
+            </Link>
             <Link href="/admin/matches" className="hover:text-emerald-600">
               Matches
             </Link>
@@ -25,9 +28,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </Link>
             <Link href="/admin/report" className="hover:text-emerald-600">
               Report
-            </Link>
-            <Link href="/" className="hover:text-emerald-600">
-              Public View
             </Link>
           </nav>
           <LogoutButton />

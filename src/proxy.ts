@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
 
+const PROTECTED_API_PREFIXES = ["/api/players", "/api/matches", "/api/stats", "/api/months", "/api/og", "/api/reports"];
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isAdminPage = pathname.startsWith("/admin");
-  const isAdminApiWrite =
-    (pathname.startsWith("/api/players") || pathname.startsWith("/api/matches")) &&
-    request.method !== "GET";
+  const isProtectedApi = PROTECTED_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
-  if (!isAdminPage && !isAdminApiWrite) {
+  if (!isAdminPage && !isProtectedApi) {
     return NextResponse.next();
   }
 
@@ -30,5 +30,13 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/players/:path*", "/api/matches/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/api/players/:path*",
+    "/api/matches/:path*",
+    "/api/stats/:path*",
+    "/api/months/:path*",
+    "/api/og/:path*",
+    "/api/reports/:path*",
+  ],
 };
