@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import { connectToDatabase } from "@/lib/db";
+import { User } from "@/lib/models/User";
 import { createSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
-  const { password } = await request.json();
+  const { username, password } = await request.json();
 
-  if (!process.env.ADMIN_PASSWORD) {
-    return NextResponse.json({ error: "Server is missing ADMIN_PASSWORD" }, { status: 500 });
+  if (!username || !password) {
+    return NextResponse.json({ error: "Username and password are required" }, { status: 400 });
   }
 
-  if (password !== process.env.ADMIN_PASSWORD) {
-    return NextResponse.json({ error: "Incorrect password" }, { status: 401 });
+  await connectToDatabase();
+  const user = await User.findOne({ username: String(username).trim().toLowerCase() });
+
+  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    return NextResponse.json({ error: "Incorrect username or password" }, { status: 401 });
   }
 
-  const token = await createSessionToken();
+  const token = await createSessionToken(user.username);
   const response = NextResponse.json({ ok: true });
   response.cookies.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
