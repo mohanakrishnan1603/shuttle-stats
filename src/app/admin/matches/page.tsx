@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Spinner, LoadingBlock } from "@/components/Spinner";
+import { EditIcon, DeleteIcon } from "@/components/icons";
+import { useSession } from "@/lib/session-context";
 
 type Player = {
   _id: string;
@@ -15,16 +18,37 @@ type Match = {
   winner: "A" | "B";
 };
 
+function todayString(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function toDateInputValue(iso: string): string {
+  return new Date(iso).toISOString().slice(0, 10);
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 const EMPTY_SELECTION = { a1: "", a2: "", b1: "", b2: "" };
 
 export default function MatchesPage() {
+  const { isAdmin } = useSession();
   const [players, setPlayers] = useState<Player[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState(EMPTY_SELECTION);
   const [winner, setWinner] = useState<"A" | "B">("A");
+  const [date, setDate] = useState(todayString());
+  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [dateFilter, setDateFilter] = useState("");
 
   async function loadData() {
     const [playersRes, matchesRes] = await Promise.all([
@@ -60,13 +84,17 @@ export default function MatchesPage() {
     setSaving(true);
     setError(null);
 
-    const res = await fetch("/api/matches", {
-      method: "POST",
+    const url = editingMatchId ? `/api/matches/${editingMatchId}` : "/api/matches";
+    const method = editingMatchId ? "PUT" : "POST";
+
+    const res = await fetch(url, {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         teamA: [selection.a1, selection.a2],
         teamB: [selection.b1, selection.b2],
         winner,
+        date,
       }),
     });
 
@@ -78,154 +106,234 @@ export default function MatchesPage() {
       return;
     }
 
-    setSelection(EMPTY_SELECTION);
-    setWinner("A");
+    handleReset();
     loadData();
   }
 
   function handleReset() {
     setSelection(EMPTY_SELECTION);
     setWinner("A");
+    setDate(todayString());
+    setEditingMatchId(null);
+    setError(null);
+  }
+
+  function startEdit(match: Match) {
+    setEditingMatchId(match._id);
+    setSelection({
+      a1: match.teamA[0]?._id ?? "",
+      a2: match.teamA[1]?._id ?? "",
+      b1: match.teamB[0]?._id ?? "",
+      b2: match.teamB[1]?._id ?? "",
+    });
+    setWinner(match.winner);
+    setDate(toDateInputValue(match.date));
     setError(null);
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this match result? This will affect the leaderboard.")) return;
     await fetch(`/api/matches/${id}`, { method: "DELETE" });
+    if (editingMatchId === id) handleReset();
     loadData();
   }
 
-  if (loading) return <p className="text-sm text-gray-500">Loading…</p>;
+  const filteredMatches = dateFilter
+    ? matches.filter((m) => toDateInputValue(m.date) === dateFilter)
+    : matches;
 
-  if (players.length < 4) {
-    return (
-      <p className="text-sm text-gray-500">
-        Add at least 4 players before recording a doubles match. Go to the Players page first.
-      </p>
-    );
-  }
+  if (loading) return <LoadingBlock label="Loading matches…" />;
 
   return (
     <div>
-      <h1 className="mb-4 text-lg font-semibold text-gray-900">Record a Match</h1>
+      {isAdmin && (
+        <>
+          <h1 className="mb-4 text-lg font-semibold text-gray-900">
+            {editingMatchId ? "Edit Match" : "Record a Match"}
+          </h1>
 
-      <form onSubmit={handleSubmit} className="mb-6 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
-        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="rounded-lg border border-gray-200 p-3">
-            <p className="mb-2 text-sm font-semibold text-gray-700">Team A</p>
-            <select
-              value={selection.a1}
-              onChange={(e) => setSelection({ ...selection, a1: e.target.value })}
-              className="mb-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-base"
+          {players.length < 4 ? (
+            <p className="mb-6 text-sm text-gray-500">
+              Add at least 4 players before recording a doubles match. Go to the Players page first.
+            </p>
+          ) : (
+            <form
+              onSubmit={handleSubmit}
+              className="mb-6 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200"
             >
-              <option value="">Select player 1</option>
-              {playerOptions("a1").map((p) => (
-                <option key={p._id} value={p._id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={selection.a2}
-              onChange={(e) => setSelection({ ...selection, a2: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base"
-            >
-              <option value="">Select player 2</option>
-              {playerOptions("a2").map((p) => (
-                <option key={p._id} value={p._id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
+              <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="rounded-lg border border-gray-200 p-3">
+                  <p className="mb-2 text-sm font-semibold text-gray-700">Team A</p>
+                  <select
+                    value={selection.a1}
+                    onChange={(e) => setSelection({ ...selection, a1: e.target.value })}
+                    className="mb-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-base"
+                  >
+                    <option value="">Select player 1</option>
+                    {playerOptions("a1").map((p) => (
+                      <option key={p._id} value={p._id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={selection.a2}
+                    onChange={(e) => setSelection({ ...selection, a2: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base"
+                  >
+                    <option value="">Select player 2</option>
+                    {playerOptions("a2").map((p) => (
+                      <option key={p._id} value={p._id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-          <div className="rounded-lg border border-gray-200 p-3">
-            <p className="mb-2 text-sm font-semibold text-gray-700">Team B</p>
-            <select
-              value={selection.b1}
-              onChange={(e) => setSelection({ ...selection, b1: e.target.value })}
-              className="mb-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-base"
-            >
-              <option value="">Select player 1</option>
-              {playerOptions("b1").map((p) => (
-                <option key={p._id} value={p._id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={selection.b2}
-              onChange={(e) => setSelection({ ...selection, b2: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base"
-            >
-              <option value="">Select player 2</option>
-              {playerOptions("b2").map((p) => (
-                <option key={p._id} value={p._id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+                <div className="rounded-lg border border-gray-200 p-3">
+                  <p className="mb-2 text-sm font-semibold text-gray-700">Team B</p>
+                  <select
+                    value={selection.b1}
+                    onChange={(e) => setSelection({ ...selection, b1: e.target.value })}
+                    className="mb-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-base"
+                  >
+                    <option value="">Select player 1</option>
+                    {playerOptions("b1").map((p) => (
+                      <option key={p._id} value={p._id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={selection.b2}
+                    onChange={(e) => setSelection({ ...selection, b2: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base"
+                  >
+                    <option value="">Select player 2</option>
+                    {playerOptions("b2").map((p) => (
+                      <option key={p._id} value={p._id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-        <div className="mb-4">
-          <p className="mb-2 text-sm font-semibold text-gray-700">Winner</p>
-          <div className="flex gap-3">
-            <label className="flex flex-1 items-center gap-2 rounded-lg border border-gray-300 px-3 py-2">
-              <input type="radio" checked={winner === "A"} onChange={() => setWinner("A")} />
-              Team A
-            </label>
-            <label className="flex flex-1 items-center gap-2 rounded-lg border border-gray-300 px-3 py-2">
-              <input type="radio" checked={winner === "B"} onChange={() => setWinner("B")} />
-              Team B
-            </label>
-          </div>
-        </div>
+              <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-gray-700">Date</p>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    max={todayString()}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base"
+                  />
+                </div>
 
-        {hasDuplicates && (
-          <p className="mb-3 text-sm text-red-600">Each player can only be selected once.</p>
-        )}
-        {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-gray-700">Winner</p>
+                  <div className="flex gap-3">
+                    <label className="flex flex-1 items-center gap-2 rounded-lg border border-gray-300 px-3 py-2">
+                      <input type="radio" checked={winner === "A"} onChange={() => setWinner("A")} />
+                      Team A
+                    </label>
+                    <label className="flex flex-1 items-center gap-2 rounded-lg border border-gray-300 px-3 py-2">
+                      <input type="radio" checked={winner === "B"} onChange={() => setWinner("B")} />
+                      Team B
+                    </label>
+                  </div>
+                </div>
+              </div>
 
-        <div className="flex gap-2">
-          {allSelected && (
+              {hasDuplicates && (
+                <p className="mb-3 text-sm text-red-600">Each player can only be selected once.</p>
+              )}
+              {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+
+              <div className="flex gap-2">
+                {allSelected && (
+                  <button
+                    type="submit"
+                    disabled={hasDuplicates || saving}
+                    className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    {saving && <Spinner className="h-4 w-4" />}
+                    {saving ? "Saving…" : editingMatchId ? "Update match" : "Save match"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100"
+                >
+                  {editingMatchId ? "Cancel edit" : "Reset"}
+                </button>
+              </div>
+            </form>
+          )}
+        </>
+      )}
+
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-gray-700">Recent matches</h2>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="rounded-lg border border-gray-300 px-2 py-1 text-sm"
+          />
+          {dateFilter && (
             <button
-              type="submit"
-              disabled={hasDuplicates || saving}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              type="button"
+              onClick={() => setDateFilter("")}
+              className="text-sm font-medium text-emerald-600 hover:text-emerald-800"
             >
-              {saving ? "Saving…" : "Save match"}
+              All
             </button>
           )}
-          <button
-            type="button"
-            onClick={handleReset}
-            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100"
-          >
-            Reset
-          </button>
         </div>
-      </form>
+      </div>
 
-      <h2 className="mb-2 text-sm font-semibold text-gray-700">Recent matches</h2>
-      {matches.length === 0 ? (
-        <p className="text-sm text-gray-500">No matches recorded yet.</p>
+      {filteredMatches.length === 0 ? (
+        <p className="text-sm text-gray-500">
+          {dateFilter ? "No matches recorded on this date." : "No matches recorded yet."}
+        </p>
       ) : (
         <ul className="divide-y divide-gray-200 rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
-          {matches.map((match) => (
+          {filteredMatches.map((match) => (
             <li key={match._id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
-              <div>
-                <span className={match.winner === "A" ? "font-semibold text-emerald-700" : "text-gray-700"}>
-                  {match.teamA.map((p) => p.name).join(" & ")}
-                </span>
-                <span className="mx-2 text-gray-400">vs</span>
-                <span className={match.winner === "B" ? "font-semibold text-emerald-700" : "text-gray-700"}>
-                  {match.teamB.map((p) => p.name).join(" & ")}
-                </span>
+              <div className="min-w-0">
+                <div className="mb-0.5 text-xs text-gray-400">{formatDate(match.date)}</div>
+                <div>
+                  <span className={match.winner === "A" ? "font-semibold text-emerald-700" : "text-gray-700"}>
+                    {match.teamA.map((p) => p.name).join(" & ")}
+                  </span>
+                  <span className="mx-2 text-gray-400">vs</span>
+                  <span className={match.winner === "B" ? "font-semibold text-emerald-700" : "text-gray-700"}>
+                    {match.teamB.map((p) => p.name).join(" & ")}
+                  </span>
+                </div>
               </div>
-              <button onClick={() => handleDelete(match._id)} className="shrink-0 text-red-500 hover:text-red-700">
-                Delete
-              </button>
+              {isAdmin && (
+                <div className="flex shrink-0 gap-3">
+                  <button
+                    onClick={() => startEdit(match)}
+                    aria-label="Edit match"
+                    className="text-emerald-600 hover:text-emerald-800"
+                  >
+                    <EditIcon />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(match._id)}
+                    aria-label="Delete match"
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <DeleteIcon />
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>

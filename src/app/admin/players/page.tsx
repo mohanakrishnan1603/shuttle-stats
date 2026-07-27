@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Spinner, LoadingBlock } from "@/components/Spinner";
+import { useSession } from "@/lib/session-context";
 
 type Player = {
   _id: string;
@@ -10,6 +12,7 @@ type Player = {
 };
 
 export default function PlayersPage() {
+  const { isAdmin } = useSession();
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,66 +83,69 @@ export default function PlayersPage() {
     <div>
       <h1 className="mb-4 text-lg font-semibold text-gray-900">Players</h1>
 
-      <form
-        onSubmit={handleSubmit}
-        className="mb-6 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200"
-      >
-        <div className="mb-3">
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-            placeholder="Player name"
-          />
-        </div>
-        <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
+      {isAdmin && (
+        <form
+          onSubmit={handleSubmit}
+          className="mb-6 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200"
+        >
+          <div className="mb-3">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              Name <span className="text-red-500">*</span>
+            </label>
             <input
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              placeholder="optional"
+              placeholder="Player name"
             />
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Mobile</label>
-            <input
-              value={form.mobile}
-              onChange={(e) => setForm({ ...form, mobile: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              placeholder="optional"
-            />
+          <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Email</label>
+              <input
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                placeholder="optional"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Mobile</label>
+              <input
+                value={form.mobile}
+                onChange={(e) => setForm({ ...form, mobile: e.target.value })}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                placeholder="optional"
+              />
+            </div>
           </div>
-        </div>
 
-        {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
-        <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={saving || !form.name.trim()}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-          >
-            {editingId ? "Save changes" : "Add player"}
-          </button>
-          {editingId && (
+          <div className="flex gap-2">
             <button
-              type="button"
-              onClick={resetForm}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100"
+              type="submit"
+              disabled={saving || !form.name.trim()}
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
             >
-              Cancel
+              {saving && <Spinner className="h-4 w-4" />}
+              {editingId ? "Save changes" : "Add player"}
             </button>
-          )}
-        </div>
-      </form>
+            {editingId && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      )}
 
       {loading ? (
-        <p className="text-sm text-gray-500">Loading…</p>
+        <LoadingBlock label="Loading players…" />
       ) : players.length === 0 ? (
         <p className="text-sm text-gray-500">No players yet — add the first one above.</p>
       ) : (
@@ -152,14 +158,16 @@ export default function PlayersPage() {
                   {[player.email, player.mobile].filter(Boolean).join(" · ") || "—"}
                 </p>
               </div>
-              <div className="flex shrink-0 gap-3 text-sm font-medium">
-                <button onClick={() => startEdit(player)} className="text-emerald-600 hover:text-emerald-800">
-                  Edit
-                </button>
-                <button onClick={() => handleDelete(player._id)} className="text-red-500 hover:text-red-700">
-                  Delete
-                </button>
-              </div>
+              {isAdmin && (
+                <div className="flex shrink-0 gap-3 text-sm font-medium">
+                  <button onClick={() => startEdit(player)} className="text-emerald-600 hover:text-emerald-800">
+                    Edit
+                  </button>
+                  <button onClick={() => handleDelete(player._id)} className="text-red-500 hover:text-red-700">
+                    Delete
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>

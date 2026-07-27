@@ -3,6 +3,7 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { APP_VERSION } from "@/lib/version";
+import { Spinner } from "@/components/Spinner";
 
 function LoginForm() {
   const router = useRouter();
@@ -68,8 +69,9 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading || !username || !password}
-            className="w-full rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
           >
+            {loading && <Spinner className="h-4 w-4" />}
             {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>

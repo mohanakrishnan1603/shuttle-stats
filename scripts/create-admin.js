@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /*
- * One-time (or as-needed) admin account setup.
- * Creates a new admin user, or resets the password of an existing one.
+ * One-time (or as-needed) account setup for either role.
+ * Creates a new user, or resets the password/role of an existing one.
  *
  * Usage:
  *   npm run create-admin
  *
  * Reads MONGODB_URI from .env.local (or the environment) and prompts for
- * username + password. Nothing is printed or logged from the password input.
+ * username + password + role. Nothing is printed or logged from the password input.
  */
 
 const fs = require("fs");
@@ -109,6 +109,9 @@ async function main() {
     process.exit(1);
   }
 
+  const roleInput = (await prompt("Role (admin/viewer) [admin]: ")).toLowerCase();
+  const role = roleInput === "viewer" ? "viewer" : "admin";
+
   const client = new MongoClient(uri);
   await client.connect();
   const db = client.db();
@@ -118,11 +121,11 @@ async function main() {
 
   await db.collection("users").updateOne(
     { username },
-    { $set: { username, passwordHash }, $setOnInsert: { createdAt: new Date() } },
+    { $set: { username, passwordHash, role }, $setOnInsert: { createdAt: new Date() } },
     { upsert: true }
   );
 
-  console.log(existing ? `Password updated for "${username}".` : `Admin user "${username}" created.`);
+  console.log(existing ? `Updated "${username}" (role: ${role}).` : `Created "${username}" (role: ${role}).`);
 
   await client.close();
 }

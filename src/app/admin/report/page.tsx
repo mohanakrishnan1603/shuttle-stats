@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Spinner, LoadingBlock } from "@/components/Spinner";
 
 type PlayerStats = {
   playerId: string;
@@ -73,7 +74,7 @@ export default function ReportPage() {
     return parts.length ? `?${parts.join("&")}` : "";
   };
 
-  if (loadingMonths) return <p className="text-sm text-gray-500">Loading…</p>;
+  if (loadingMonths) return <LoadingBlock label="Loading…" />;
 
   return (
     <div>
@@ -125,8 +126,9 @@ export default function ReportPage() {
         <button
           onClick={handleGenerate}
           disabled={generating || isCustomIncomplete}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
         >
+          {generating && <Spinner className="h-4 w-4" />}
           {generating ? "Generating…" : "Generate Report"}
         </button>
       </div>

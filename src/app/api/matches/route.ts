@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/db";
 import { Match } from "@/lib/models/Match";
+import { parseMatchInput } from "@/lib/matchValidation";
 
 export async function GET() {
   await connectToDatabase();
@@ -13,30 +14,17 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const { teamA, teamB, winner } = await request.json();
+  const body = await request.json();
+  const result = parseMatchInput(body);
 
-  if (!Array.isArray(teamA) || teamA.length !== 2 || !Array.isArray(teamB) || teamB.length !== 2) {
-    return NextResponse.json(
-      { error: "Each team needs exactly 2 players" },
-      { status: 400 }
-    );
+  if ("error" in result) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
-  if (winner !== "A" && winner !== "B") {
-    return NextResponse.json({ error: "Winner must be 'A' or 'B'" }, { status: 400 });
-  }
-
-  const allPlayers = [...teamA, ...teamB];
-  const uniquePlayers = new Set(allPlayers);
-  if (uniquePlayers.size !== 4) {
-    return NextResponse.json(
-      { error: "A match needs 4 distinct players" },
-      { status: 400 }
-    );
-  }
+  const { teamA, teamB, winner, date } = result.data;
 
   await connectToDatabase();
-  const match = await Match.create({ teamA, teamB, winner });
+  const match = await Match.create({ teamA, teamB, winner, ...(date ? { date } : {}) });
 
   return NextResponse.json(match, { status: 201 });
 }
