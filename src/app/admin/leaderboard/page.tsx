@@ -34,7 +34,50 @@ export default async function LeaderboardPage({
         <p className="text-sm text-gray-500">No players yet.</p>
       ) : (
         <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
-          <table className="w-full text-left text-sm">
+          {/* Mobile: stacked cards, no horizontal scrolling needed */}
+          <ul className="divide-y divide-gray-100 sm:hidden">
+            {report.players.map((player) => (
+              <li key={player.playerId} className="px-4 py-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium text-gray-900">
+                      {player.played > 0 ? `${player.rank}. ` : ""}
+                      {player.name}
+                    </div>
+                    <div className="truncate text-xs text-gray-400">{player.punchline}</div>
+                  </div>
+                  <div className="shrink-0 text-right font-semibold text-emerald-700">
+                    {player.played === 0 ? "—" : `${player.winPct}%`}
+                  </div>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                  <span>
+                    P <span className="font-medium text-gray-700">{player.played}</span>
+                  </span>
+                  <span>
+                    W <span className="font-medium text-gray-700">{player.won}</span>
+                  </span>
+                  <span>
+                    L <span className="font-medium text-gray-700">{player.lost}</span>
+                  </span>
+                  {player.isMostActive && (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-700">
+                      🔥 Active
+                    </span>
+                  )}
+                  {player.isMostImproved && (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
+                      📈 Improved
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {/* sm and up: full table */}
+          <table className="hidden w-full text-left text-sm sm:table">
             <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-500">
               <tr>
                 <th className="px-3 py-2 sm:px-4">Player</th>
