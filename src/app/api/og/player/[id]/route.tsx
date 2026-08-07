@@ -69,7 +69,7 @@ export async function GET(
         </div>
 
         <div style={{ display: "flex", fontSize: 24, color: "#e2e8f0", maxWidth: 620 }}>
-          {stats.punchline}
+          {stats.detailedPunchline}
         </div>
 
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
@@ -106,6 +106,6 @@ export async function GET(
         </div>
       </div>
     ),
-    { width: 800, height: 440 }
+    { width: 800, height: 520 }
   );
 }

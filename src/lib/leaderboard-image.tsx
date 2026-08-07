@@ -14,7 +14,7 @@ export function buildLeaderboardImageResponse(report: Report): ImageResponse {
   const players = report.players.filter((p) => p.played > 0);
 
   const width = 900;
-  const rowHeight = 150;
+  const rowHeight = 132;
   const height = 190 + Math.max(players.length, 1) * rowHeight + 60;
 
   return new ImageResponse(
@@ -125,7 +125,7 @@ export function buildLeaderboardImageResponse(report: Report): ImageResponse {
                   borderLeft: "2px solid rgba(255,255,255,0.15)",
                 }}
               >
-                {player.punchline}
+                {player.detailedPunchline}
               </div>
             </div>
           ))

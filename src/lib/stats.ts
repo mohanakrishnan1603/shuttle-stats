@@ -1,7 +1,7 @@
 import { connectToDatabase } from "@/lib/db";
 import { Player } from "@/lib/models/Player";
 import { Match, MatchDoc } from "@/lib/models/Match";
-import { getPunchline } from "@/lib/punchlines";
+import { getPunchline, getDetailedPunchline } from "@/lib/punchlines";
 
 export type PlayerStats = {
   playerId: string;
@@ -18,6 +18,7 @@ export type EnrichedPlayerStats = PlayerStats & {
   isMostImproved: boolean;
   winPctDelta: number | null;
   punchline: string;
+  detailedPunchline: string;
 };
 
 export type DateRange = { start?: Date; end?: Date };
@@ -193,6 +194,7 @@ export async function getReport(range: DateRange, periodLabel: string): Promise<
       isMostImproved: p.playerId === mostImprovedId,
       winPctDelta,
       punchline: getPunchline(p, rank, totalActive),
+      detailedPunchline: getDetailedPunchline(p, rank, totalActive),
     };
   });
 
