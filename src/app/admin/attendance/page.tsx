@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { computeAttendance, PlayerAttendance } from "@/lib/stats";
+import { computeAttendance } from "@/lib/stats";
 import { getAttendancePunchline, streakBadgeLabel } from "@/lib/punchlines";
 import AttendanceDatePicker from "@/app/AttendanceDatePicker";
 
@@ -33,11 +33,12 @@ export default async function AttendancePage({
   const { date } = await searchParams;
   const report = await computeAttendance(date);
 
-  const longestStreakPlayer = report.players.reduce<PlayerAttendance | null>((best, p) => {
-    if (p.streak <= 0) return best;
-    if (!best || p.streak > best.streak) return p;
-    return best;
-  }, null);
+  const maxStreak = Math.max(0, ...report.players.map((p) => p.streak));
+  const longestStreakPlayers = maxStreak > 0 ? report.players.filter((p) => p.streak === maxStreak) : [];
+
+  const maxSessionsPresent = Math.max(0, ...report.players.map((p) => p.sessionsPresent));
+  const mostPresentPlayers =
+    maxSessionsPresent > 0 ? report.players.filter((p) => p.sessionsPresent === maxSessionsPresent) : [];
 
   return (
     <div>
@@ -71,11 +72,19 @@ export default async function AttendancePage({
                 </div>
               )}
             </div>
-            {longestStreakPlayer && (
+            {longestStreakPlayers.length > 0 && (
               <div className="rounded-xl bg-white px-4 py-3 shadow-sm ring-1 ring-gray-200">
                 <div className="text-sm font-medium text-gray-900">🔥 Longest streak</div>
                 <div className="text-xs text-gray-500">
-                  {longestStreakPlayer.name} ({longestStreakPlayer.streak})
+                  {longestStreakPlayers.map((p) => p.name).join(", ")} ({maxStreak})
+                </div>
+              </div>
+            )}
+            {mostPresentPlayers.length > 0 && (
+              <div className="rounded-xl bg-white px-4 py-3 shadow-sm ring-1 ring-gray-200">
+                <div className="text-sm font-medium text-gray-900">🏅 Most present</div>
+                <div className="text-xs text-gray-500">
+                  {mostPresentPlayers.map((p) => p.name).join(", ")} ({maxSessionsPresent} sessions)
                 </div>
               </div>
             )}
