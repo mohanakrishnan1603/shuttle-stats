@@ -203,3 +203,154 @@ export async function getPlayerReport(playerId: string, range: DateRange, period
   const report = await getReport(range, periodLabel);
   return report.players.find((p) => p.playerId === playerId) ?? null;
 }
+
+export type DayStatus = { date: string; status: "no-session" | "present" | "absent" };
+
+export type PlayerAttendance = {
+  playerId: string;
+  name: string;
+  presentToday: boolean;
+  streak: number;
+  sessionsPresent: number;
+  totalSessions: number;
+  attendancePct: number;
+  weekStrip: DayStatus[];
+};
+
+export type WeekOverviewDay = {
+  date: string;
+  isSessionDay: boolean;
+  presentCount: number;
+  totalPlayers: number;
+  isSelected: boolean;
+};
+
+export type AttendanceReport = {
+  selectedDate: string;
+  isSessionDay: boolean;
+  totalPlayers: number;
+  presentCount: number;
+  latestSessionDate: string | null;
+  players: PlayerAttendance[];
+  weekOverview: WeekOverviewDay[];
+};
+
+function toDayKey(date: Date): string {
+  const d = new Date(date);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
+function addDaysToKey(dayKey: string, delta: number): string {
+  const [year, month, day] = dayKey.split("-").map(Number);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  d.setUTCDate(d.getUTCDate() + delta);
+  return toDayKey(d);
+}
+
+function buildWeekStrip(
+  selectedDate: string,
+  presentByDay: Map<string, Set<string>>,
+  playerId: string
+): DayStatus[] {
+  const strip: DayStatus[] = [];
+  for (let i = -6; i <= 0; i++) {
+    const date = addDaysToKey(selectedDate, i);
+    const dayPresent = presentByDay.get(date);
+    const status: DayStatus["status"] = !dayPresent ? "no-session" : dayPresent.has(playerId) ? "present" : "absent";
+    strip.push({ date, status });
+  }
+  return strip;
+}
+
+function buildWeekOverview(
+  selectedDate: string,
+  presentByDay: Map<string, Set<string>>,
+  totalPlayers: number
+): WeekOverviewDay[] {
+  const overview: WeekOverviewDay[] = [];
+  for (let i = -6; i <= 0; i++) {
+    const date = addDaysToKey(selectedDate, i);
+    const dayPresent = presentByDay.get(date);
+    overview.push({
+      date,
+      isSessionDay: Boolean(dayPresent),
+      presentCount: dayPresent?.size ?? 0,
+      totalPlayers,
+      isSelected: date === selectedDate,
+    });
+  }
+  return overview;
+}
+
+export async function computeAttendance(selectedDate?: string): Promise<AttendanceReport> {
+  await connectToDatabase();
+
+  const [players, matches] = await Promise.all([
+    Player.find().sort({ name: 1 }).lean(),
+    Match.find().lean<MatchDoc[]>(),
+  ]);
+
+  const presentByDay = new Map<string, Set<string>>();
+  for (const match of matches) {
+    const dayKey = toDayKey(match.date);
+    const dayPresent = presentByDay.get(dayKey) ?? new Set<string>();
+    for (const playerId of [...match.teamA, ...match.teamB]) {
+      dayPresent.add(String(playerId));
+    }
+    presentByDay.set(dayKey, dayPresent);
+  }
+
+  const sessionDates = Array.from(presentByDay.keys()).sort();
+  const latestSessionDate = sessionDates.at(-1) ?? null;
+  const resolvedSelected = selectedDate ?? latestSessionDate ?? toDayKey(new Date());
+  const isSessionDay = presentByDay.has(resolvedSelected);
+  const presentTodaySet = presentByDay.get(resolvedSelected) ?? new Set<string>();
+
+  const playerAttendance: PlayerAttendance[] = players.map((player) => {
+    const playerId = String(player._id);
+
+    let sessionsPresent = 0;
+    for (const date of sessionDates) {
+      if (presentByDay.get(date)?.has(playerId)) sessionsPresent += 1;
+    }
+
+    let streak = 0;
+    for (let i = sessionDates.length - 1; i >= 0; i--) {
+      if (presentByDay.get(sessionDates[i])?.has(playerId)) {
+        streak += 1;
+      } else {
+        break;
+      }
+    }
+
+    const totalSessions = sessionDates.length;
+    const attendancePct = totalSessions === 0 ? 0 : Math.round((sessionsPresent / totalSessions) * 1000) / 10;
+
+    return {
+      playerId,
+      name: player.name,
+      presentToday: presentTodaySet.has(playerId),
+      streak,
+      sessionsPresent,
+      totalSessions,
+      attendancePct,
+      weekStrip: buildWeekStrip(resolvedSelected, presentByDay, playerId),
+    };
+  });
+
+  playerAttendance.sort((a, b) => {
+    if (a.presentToday !== b.presentToday) return a.presentToday ? -1 : 1;
+    if (a.streak !== b.streak) return b.streak - a.streak;
+    return a.name.localeCompare(b.name);
+  });
+
+  return {
+    selectedDate: resolvedSelected,
+    isSessionDay,
+    totalPlayers: players.length,
+    presentCount: playerAttendance.filter((p) => p.presentToday).length,
+    latestSessionDate,
+    players: playerAttendance,
+    weekOverview: buildWeekOverview(resolvedSelected, presentByDay, players.length),
+  };
+}
