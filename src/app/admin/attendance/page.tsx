@@ -150,7 +150,7 @@ export default async function AttendancePage({
                   <th className="px-2 py-2 text-center sm:px-3">Today</th>
                   <th className="px-2 py-2 text-center sm:px-3">Streak</th>
                   <th className="px-2 py-2 text-center sm:px-3">Attendance %</th>
-                  <th className="px-3 py-2 text-right sm:px-4">Last 7 days</th>
+                  <th className="px-3 py-2 text-right sm:px-4">This week</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">

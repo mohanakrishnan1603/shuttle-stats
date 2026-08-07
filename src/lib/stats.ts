@@ -255,7 +255,7 @@ function buildWeekStrip(
   playerId: string
 ): DayStatus[] {
   const strip: DayStatus[] = [];
-  for (let i = -6; i <= 0; i++) {
+  for (let i = -3; i <= 3; i++) {
     const date = addDaysToKey(selectedDate, i);
     const dayPresent = presentByDay.get(date);
     const status: DayStatus["status"] = !dayPresent ? "no-session" : dayPresent.has(playerId) ? "present" : "absent";
@@ -270,7 +270,7 @@ function buildWeekOverview(
   totalPlayers: number
 ): WeekOverviewDay[] {
   const overview: WeekOverviewDay[] = [];
-  for (let i = -6; i <= 0; i++) {
+  for (let i = -3; i <= 3; i++) {
     const date = addDaysToKey(selectedDate, i);
     const dayPresent = presentByDay.get(date);
     overview.push({
