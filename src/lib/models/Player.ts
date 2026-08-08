@@ -4,6 +4,7 @@ export interface PlayerDoc extends mongoose.Document {
   name: string;
   email?: string;
   mobile?: string;
+  includeInReports: boolean;
   createdAt: Date;
 }
 
@@ -11,6 +12,7 @@ const PlayerSchema = new Schema<PlayerDoc>({
   name: { type: String, required: true, trim: true },
   email: { type: String, trim: true },
   mobile: { type: String, trim: true },
+  includeInReports: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
 });
 

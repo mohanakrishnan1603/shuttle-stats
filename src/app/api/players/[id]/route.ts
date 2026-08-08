@@ -4,7 +4,7 @@ import { Player } from "@/lib/models/Player";
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { name, email, mobile } = await request.json();
+  const { name, email, mobile, includeInReports } = await request.json();
 
   if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -17,6 +17,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       name: name.trim(),
       email: email?.trim() || undefined,
       mobile: mobile?.trim() || undefined,
+      includeInReports: includeInReports ?? true,
     },
     { new: true }
   );

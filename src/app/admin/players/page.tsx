@@ -9,6 +9,7 @@ type Player = {
   name: string;
   email?: string;
   mobile?: string;
+  includeInReports?: boolean;
 };
 
 export default function PlayersPage() {
@@ -17,9 +18,12 @@ export default function PlayersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [form, setForm] = useState({ name: "", email: "", mobile: "" });
+  const [form, setForm] = useState({ name: "", email: "", mobile: "", includeInReports: true });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const rosterPlayers = players.filter((p) => p.includeInReports !== false);
+  const guestPlayers = players.filter((p) => p.includeInReports === false);
 
   async function loadPlayers() {
     const res = await fetch("/api/players");
@@ -35,12 +39,17 @@ export default function PlayersPage() {
 
   function startEdit(player: Player) {
     setEditingId(player._id);
-    setForm({ name: player.name, email: player.email ?? "", mobile: player.mobile ?? "" });
+    setForm({
+      name: player.name,
+      email: player.email ?? "",
+      mobile: player.mobile ?? "",
+      includeInReports: player.includeInReports ?? true,
+    });
   }
 
   function resetForm() {
     setEditingId(null);
-    setForm({ name: "", email: "", mobile: "" });
+    setForm({ name: "", email: "", mobile: "", includeInReports: true });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -120,6 +129,24 @@ export default function PlayersPage() {
             </div>
           </div>
 
+          <div className="mb-3">
+            <label className="flex items-start gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={form.includeInReports}
+                onChange={(e) => setForm({ ...form, includeInReports: e.target.checked })}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span>
+                <span className="font-medium">Include in reports</span>
+                <span className="block text-xs text-gray-500">
+                  Turn off for one-off guest players — they&apos;ll be left out of the leaderboard and
+                  reports, but their matches still count for their teammates.
+                </span>
+              </span>
+            </label>
+          </div>
+
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
           <div className="flex gap-2">
@@ -149,29 +176,61 @@ export default function PlayersPage() {
       ) : players.length === 0 ? (
         <p className="text-sm text-gray-500">No players yet — add the first one above.</p>
       ) : (
-        <ul className="divide-y divide-gray-200 rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
-          {players.map((player) => (
-            <li key={player._id} className="flex items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
-                <p className="truncate font-medium text-gray-900">{player.name}</p>
-                <p className="truncate text-sm text-gray-500">
-                  {[player.email, player.mobile].filter(Boolean).join(" · ") || "—"}
-                </p>
-              </div>
-              {isAdmin && (
-                <div className="flex shrink-0 gap-3 text-sm font-medium">
-                  <button onClick={() => startEdit(player)} className="text-emerald-600 hover:text-emerald-800">
-                    Edit
-                  </button>
-                  <button onClick={() => handleDelete(player._id)} className="text-red-500 hover:text-red-700">
-                    Delete
-                  </button>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+        <>
+          {rosterPlayers.length > 0 && (
+            <ul className="divide-y divide-gray-200 rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
+              {rosterPlayers.map((player) => (
+                <PlayerRow key={player._id} player={player} isAdmin={isAdmin} onEdit={startEdit} onDelete={handleDelete} />
+              ))}
+            </ul>
+          )}
+
+          {guestPlayers.length > 0 && (
+            <div className="mt-6">
+              <h2 className="mb-2 text-sm font-semibold text-gray-700">Guest players</h2>
+              <p className="mb-2 text-xs text-gray-500">Excluded from the leaderboard and reports.</p>
+              <ul className="divide-y divide-gray-200 rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
+                {guestPlayers.map((player) => (
+                  <PlayerRow key={player._id} player={player} isAdmin={isAdmin} onEdit={startEdit} onDelete={handleDelete} />
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
       )}
     </div>
+  );
+}
+
+function PlayerRow({
+  player,
+  isAdmin,
+  onEdit,
+  onDelete,
+}: {
+  player: Player;
+  isAdmin: boolean;
+  onEdit: (player: Player) => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <li className="flex items-center justify-between gap-3 px-4 py-3">
+      <div className="min-w-0">
+        <p className="truncate font-medium text-gray-900">{player.name}</p>
+        <p className="truncate text-sm text-gray-500">
+          {[player.email, player.mobile].filter(Boolean).join(" · ") || "—"}
+        </p>
+      </div>
+      {isAdmin && (
+        <div className="flex shrink-0 gap-3 text-sm font-medium">
+          <button onClick={() => onEdit(player)} className="text-emerald-600 hover:text-emerald-800">
+            Edit
+          </button>
+          <button onClick={() => onDelete(player._id)} className="text-red-500 hover:text-red-700">
+            Delete
+          </button>
+        </div>
+      )}
+    </li>
   );
 }

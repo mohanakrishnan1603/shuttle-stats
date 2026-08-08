@@ -67,20 +67,22 @@ export async function computeLeaderboard(range?: DateRange): Promise<PlayerStats
     }
   }
 
-  const leaderboard: PlayerStats[] = players.map((player) => {
-    const key = String(player._id);
-    const entry = totals.get(key) ?? { played: 0, won: 0 };
-    const lost = entry.played - entry.won;
-    const winPct = entry.played === 0 ? 0 : Math.round((entry.won / entry.played) * 1000) / 10;
-    return {
-      playerId: key,
-      name: player.name,
-      played: entry.played,
-      won: entry.won,
-      lost,
-      winPct,
-    };
-  });
+  const leaderboard: PlayerStats[] = players
+    .filter((player) => player.includeInReports !== false)
+    .map((player) => {
+      const key = String(player._id);
+      const entry = totals.get(key) ?? { played: 0, won: 0 };
+      const lost = entry.played - entry.won;
+      const winPct = entry.played === 0 ? 0 : Math.round((entry.won / entry.played) * 1000) / 10;
+      return {
+        playerId: key,
+        name: player.name,
+        played: entry.played,
+        won: entry.won,
+        lost,
+        winPct,
+      };
+    });
 
   leaderboard.sort((a, b) => b.winPct - a.winPct || b.played - a.played);
 

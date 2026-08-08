@@ -9,7 +9,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const { name, email, mobile } = await request.json();
+  const { name, email, mobile, includeInReports } = await request.json();
 
   if (!name || typeof name !== "string" || !name.trim()) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     name: name.trim(),
     email: email?.trim() || undefined,
     mobile: mobile?.trim() || undefined,
+    includeInReports: includeInReports ?? true,
   });
 
   return NextResponse.json(player, { status: 201 });
