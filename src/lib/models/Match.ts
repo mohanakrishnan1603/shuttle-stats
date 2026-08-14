@@ -5,6 +5,8 @@ export interface MatchDoc extends mongoose.Document {
   teamA: mongoose.Types.ObjectId[];
   teamB: mongoose.Types.ObjectId[];
   winner: "A" | "B";
+  teamAScore?: number;
+  teamBScore?: number;
   createdAt: Date;
 }
 
@@ -27,6 +29,8 @@ const MatchSchema = new Schema<MatchDoc>({
     },
   },
   winner: { type: String, enum: ["A", "B"], required: true },
+  teamAScore: { type: Number, min: 0 },
+  teamBScore: { type: Number, min: 0 },
   createdAt: { type: Date, default: Date.now },
 });
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getAvailableMonths, getReport, resolvePeriod } from "@/lib/stats";
 import PeriodPicker from "@/app/PeriodPicker";
 
@@ -42,7 +43,9 @@ export default async function LeaderboardPage({
                   <div className="min-w-0">
                     <div className="truncate font-medium text-gray-900">
                       {player.played > 0 ? `${player.rank}. ` : ""}
-                      {player.name}
+                      <Link href={`/admin/players/${player.playerId}`} className="hover:underline">
+                        {player.name}
+                      </Link>
                     </div>
                     <div className="truncate text-xs text-gray-400">{player.punchline}</div>
                   </div>
@@ -93,7 +96,9 @@ export default async function LeaderboardPage({
                   <td className="px-3 py-3 sm:px-4">
                     <div className="truncate font-medium text-gray-900">
                       {player.played > 0 ? `${player.rank}. ` : ""}
-                      {player.name}
+                      <Link href={`/admin/players/${player.playerId}`} className="hover:underline">
+                        {player.name}
+                      </Link>
                       {player.isMostActive && (
                         <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
                           🔥 Active

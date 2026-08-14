@@ -12,12 +12,21 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
-  const { teamA, teamB, winner, date } = result.data;
+  const { teamA, teamB, winner, date, teamAScore, teamBScore } = result.data;
+  const hasScores = teamAScore !== undefined && teamBScore !== undefined;
+
+  const setFields = {
+    teamA,
+    teamB,
+    winner,
+    ...(date ? { date } : {}),
+    ...(hasScores ? { teamAScore, teamBScore } : {}),
+  };
 
   await connectToDatabase();
   const match = await Match.findByIdAndUpdate(
     id,
-    { teamA, teamB, winner, ...(date ? { date } : {}) },
+    hasScores ? { $set: setFields } : { $set: setFields, $unset: { teamAScore: "", teamBScore: "" } },
     { new: true }
   );
 

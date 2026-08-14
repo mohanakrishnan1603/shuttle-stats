@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Spinner, LoadingBlock } from "@/components/Spinner";
 import { useSession } from "@/lib/session-context";
 
@@ -216,7 +217,11 @@ function PlayerRow({
   return (
     <li className="flex items-center justify-between gap-3 px-4 py-3">
       <div className="min-w-0">
-        <p className="truncate font-medium text-gray-900">{player.name}</p>
+        <p className="truncate font-medium text-gray-900">
+          <Link href={`/admin/players/${player._id}`} className="hover:underline">
+            {player.name}
+          </Link>
+        </p>
         <p className="truncate text-sm text-gray-500">
           {[player.email, player.mobile].filter(Boolean).join(" · ") || "—"}
         </p>

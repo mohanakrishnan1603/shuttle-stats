@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Spinner, LoadingBlock } from "@/components/Spinner";
 import { EditIcon, DeleteIcon } from "@/components/icons";
 import { useSession } from "@/lib/session-context";
+import { formatDate, toDateInputValue } from "@/lib/format";
 
 type Player = {
   _id: string;
@@ -16,23 +17,12 @@ type Match = {
   teamA: Player[];
   teamB: Player[];
   winner: "A" | "B";
+  teamAScore?: number;
+  teamBScore?: number;
 };
 
 function todayString(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function toDateInputValue(iso: string): string {
-  return new Date(iso).toISOString().slice(0, 10);
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
 }
 
 const EMPTY_SELECTION = { a1: "", a2: "", b1: "", b2: "" };
@@ -44,6 +34,8 @@ export default function MatchesPage() {
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState(EMPTY_SELECTION);
   const [winner, setWinner] = useState<"A" | "B">("A");
+  const [teamAScore, setTeamAScore] = useState("");
+  const [teamBScore, setTeamBScore] = useState("");
   const [date, setDate] = useState(todayString());
   const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +87,8 @@ export default function MatchesPage() {
         teamB: [selection.b1, selection.b2],
         winner,
         date,
+        teamAScore,
+        teamBScore,
       }),
     });
 
@@ -113,6 +107,8 @@ export default function MatchesPage() {
   function handleReset() {
     setSelection(EMPTY_SELECTION);
     setWinner("A");
+    setTeamAScore("");
+    setTeamBScore("");
     setDate(todayString());
     setEditingMatchId(null);
     setError(null);
@@ -127,8 +123,25 @@ export default function MatchesPage() {
       b2: match.teamB[1]?._id ?? "",
     });
     setWinner(match.winner);
+    setTeamAScore(match.teamAScore !== undefined && match.teamAScore !== null ? String(match.teamAScore) : "");
+    setTeamBScore(match.teamBScore !== undefined && match.teamBScore !== null ? String(match.teamBScore) : "");
     setDate(toDateInputValue(match.date));
     setError(null);
+  }
+
+  function handleScoreChange(field: "A" | "B", value: string) {
+    const nextA = field === "A" ? value : teamAScore;
+    const nextB = field === "B" ? value : teamBScore;
+    if (field === "A") setTeamAScore(value);
+    else setTeamBScore(value);
+
+    if (nextA !== "" && nextB !== "") {
+      const a = Number(nextA);
+      const b = Number(nextB);
+      if (Number.isFinite(a) && Number.isFinite(b) && a !== b) {
+        setWinner(a > b ? "A" : "B");
+      }
+    }
   }
 
   async function handleDelete(id: string) {
@@ -246,6 +259,39 @@ export default function MatchesPage() {
                 </div>
               </div>
 
+              <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-gray-700">
+                    Team A score <span className="font-normal text-gray-400">(optional)</span>
+                  </p>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step={1}
+                    value={teamAScore}
+                    onChange={(e) => handleScoreChange("A", e.target.value)}
+                    placeholder="e.g. 21"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base"
+                  />
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-gray-700">
+                    Team B score <span className="font-normal text-gray-400">(optional)</span>
+                  </p>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    step={1}
+                    value={teamBScore}
+                    onChange={(e) => handleScoreChange("B", e.target.value)}
+                    placeholder="e.g. 15"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base"
+                  />
+                </div>
+              </div>
+
               {hasDuplicates && (
                 <p className="mb-3 text-sm text-red-600">Each player can only be selected once.</p>
               )}
@@ -315,6 +361,11 @@ export default function MatchesPage() {
                     {match.teamB.map((p) => p.name).join(" & ")}
                   </span>
                 </div>
+                {match.teamAScore !== undefined && match.teamBScore !== undefined && (
+                  <div className="mt-0.5 text-xs text-gray-400">
+                    {match.teamAScore}–{match.teamBScore}
+                  </div>
+                )}
               </div>
               {isAdmin && (
                 <div className="flex shrink-0 gap-3">

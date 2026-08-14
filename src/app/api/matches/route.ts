@@ -21,10 +21,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
-  const { teamA, teamB, winner, date } = result.data;
+  const { teamA, teamB, winner, date, teamAScore, teamBScore } = result.data;
 
   await connectToDatabase();
-  const match = await Match.create({ teamA, teamB, winner, ...(date ? { date } : {}) });
+  const match = await Match.create({
+    teamA,
+    teamB,
+    winner,
+    teamAScore,
+    teamBScore,
+    ...(date ? { date } : {}),
+  });
 
   return NextResponse.json(match, { status: 201 });
 }

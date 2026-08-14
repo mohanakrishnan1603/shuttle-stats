@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db";
 import { Player } from "@/lib/models/Player";
 import { Match, MatchDoc } from "@/lib/models/Match";
@@ -206,6 +207,77 @@ export async function getReport(range: DateRange, periodLabel: string): Promise<
 export async function getPlayerReport(playerId: string, range: DateRange, periodLabel: string): Promise<EnrichedPlayerStats | null> {
   const report = await getReport(range, periodLabel);
   return report.players.find((p) => p.playerId === playerId) ?? null;
+}
+
+export type PlayerMatchEntry = {
+  matchId: string;
+  date: string;
+  teammate: { playerId: string; name: string } | null;
+  opponents: { playerId: string; name: string }[];
+  result: "W" | "L";
+  teamScore?: number;
+  opponentScore?: number;
+};
+
+export type PlayerMatchesReport = {
+  playerId: string;
+  name: string;
+  played: number;
+  won: number;
+  lost: number;
+  winPct: number;
+  matches: PlayerMatchEntry[];
+};
+
+type PopulatedMatch = {
+  _id: unknown;
+  date: Date;
+  winner: "A" | "B";
+  teamAScore?: number;
+  teamBScore?: number;
+  teamA: ({ _id: unknown; name: string } | null)[];
+  teamB: ({ _id: unknown; name: string } | null)[];
+};
+
+export async function getPlayerMatches(playerId: string): Promise<PlayerMatchesReport | null> {
+  await connectToDatabase();
+
+  if (!mongoose.Types.ObjectId.isValid(playerId)) return null;
+
+  const player = await Player.findById(playerId).lean();
+  if (!player) return null;
+
+  const matches = await Match.find({ $or: [{ teamA: playerId }, { teamB: playerId }] })
+    .sort({ date: -1 })
+    .populate("teamA", "name")
+    .populate("teamB", "name")
+    .lean<PopulatedMatch[]>();
+
+  let won = 0;
+  const entries: PlayerMatchEntry[] = matches.map((match) => {
+    const inTeamA = match.teamA.some((p) => p && String(p._id) === playerId);
+    const ownTeam = (inTeamA ? match.teamA : match.teamB).filter((p): p is { _id: unknown; name: string } => p != null);
+    const oppTeam = (inTeamA ? match.teamB : match.teamA).filter((p): p is { _id: unknown; name: string } => p != null);
+    const teammateDoc = ownTeam.find((p) => String(p._id) !== playerId);
+    const isWin = match.winner === (inTeamA ? "A" : "B");
+    if (isWin) won += 1;
+
+    return {
+      matchId: String(match._id),
+      date: new Date(match.date).toISOString(),
+      teammate: teammateDoc ? { playerId: String(teammateDoc._id), name: teammateDoc.name } : null,
+      opponents: oppTeam.map((p) => ({ playerId: String(p._id), name: p.name })),
+      result: isWin ? "W" : "L",
+      teamScore: inTeamA ? match.teamAScore : match.teamBScore,
+      opponentScore: inTeamA ? match.teamBScore : match.teamAScore,
+    };
+  });
+
+  const played = entries.length;
+  const lost = played - won;
+  const winPct = played === 0 ? 0 : Math.round((won / played) * 1000) / 10;
+
+  return { playerId, name: player.name, played, won, lost, winPct, matches: entries };
 }
 
 export type DayStatus = { date: string; status: "no-session" | "present" | "absent" };
