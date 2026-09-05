@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getAvailableMonths, getReport, resolvePeriod } from "@/lib/stats";
 import PeriodPicker from "@/app/PeriodPicker";
+import ViewPicker from "@/app/ViewPicker";
 
 export const dynamic = "force-dynamic";
 
@@ -12,23 +13,27 @@ function currentMonthValue(): string {
 export default async function LeaderboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; view?: string }>;
 }) {
-  const { month } = await searchParams;
+  const { month, view } = await searchParams;
   const months = await getAvailableMonths();
 
   const thisMonth = currentMonthValue();
   const hasCurrentMonthData = months.some((m) => m.value === thisMonth);
   const selectedMonth = month ?? (hasCurrentMonthData ? thisMonth : "all");
+  const selectedView = view === "winrate" ? "winrate" : "points";
 
   const { range, label } = resolvePeriod({ month: selectedMonth });
-  const report = await getReport(range, label);
+  const report = await getReport(range, label, selectedView === "points" ? "points" : "winPct");
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-semibold text-gray-900">{report.periodLabel}</h1>
-        <PeriodPicker months={months} selected={selectedMonth} basePath="/admin/leaderboard" />
+        <div className="flex items-center gap-2">
+          <ViewPicker selected={selectedView} basePath="/admin/leaderboard" month={selectedMonth} />
+          <PeriodPicker months={months} selected={selectedMonth} basePath="/admin/leaderboard" view={selectedView} />
+        </div>
       </div>
 
       {report.players.length === 0 ? (
@@ -50,7 +55,11 @@ export default async function LeaderboardPage({
                     <div className="truncate text-xs text-gray-400">{player.punchline}</div>
                   </div>
                   <div className="shrink-0 text-right font-semibold text-emerald-700">
-                    {player.played === 0 ? "—" : `${player.winPct}%`}
+                    {player.played === 0
+                      ? "—"
+                      : selectedView === "points"
+                        ? player.points
+                        : `${player.winPct}%`}
                   </div>
                 </div>
 
@@ -87,7 +96,7 @@ export default async function LeaderboardPage({
                 <th className="px-2 py-2 text-center sm:px-3">P</th>
                 <th className="px-2 py-2 text-center sm:px-3">W</th>
                 <th className="px-2 py-2 text-center sm:px-3">L</th>
-                <th className="px-3 py-2 text-right sm:px-4">Win %</th>
+                <th className="px-3 py-2 text-right sm:px-4">{selectedView === "points" ? "Pts" : "Win %"}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -116,7 +125,11 @@ export default async function LeaderboardPage({
                   <td className="px-2 py-3 text-center text-gray-600 sm:px-3">{player.won}</td>
                   <td className="px-2 py-3 text-center text-gray-600 sm:px-3">{player.lost}</td>
                   <td className="px-3 py-3 text-right font-semibold text-emerald-700 sm:px-4">
-                    {player.played === 0 ? "—" : `${player.winPct}%`}
+                    {player.played === 0
+                      ? "—"
+                      : selectedView === "points"
+                        ? player.points
+                        : `${player.winPct}%`}
                   </td>
                 </tr>
               ))}

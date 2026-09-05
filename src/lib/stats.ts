@@ -11,7 +11,10 @@ export type PlayerStats = {
   won: number;
   lost: number;
   winPct: number;
+  points: number;
 };
+
+export type LeaderboardSort = "winPct" | "points";
 
 export type EnrichedPlayerStats = PlayerStats & {
   rank: number;
@@ -29,7 +32,7 @@ export type Report = {
   players: EnrichedPlayerStats[];
 };
 
-export async function computeLeaderboard(range?: DateRange): Promise<PlayerStats[]> {
+export async function computeLeaderboard(range?: DateRange, sortBy: LeaderboardSort = "winPct"): Promise<PlayerStats[]> {
   await connectToDatabase();
 
   const dateFilter: Record<string, Date> = {};
@@ -75,6 +78,7 @@ export async function computeLeaderboard(range?: DateRange): Promise<PlayerStats
       const entry = totals.get(key) ?? { played: 0, won: 0 };
       const lost = entry.played - entry.won;
       const winPct = entry.played === 0 ? 0 : Math.round((entry.won / entry.played) * 1000) / 10;
+      const points = entry.won * 2 + lost;
       return {
         playerId: key,
         name: player.name,
@@ -82,10 +86,15 @@ export async function computeLeaderboard(range?: DateRange): Promise<PlayerStats
         won: entry.won,
         lost,
         winPct,
+        points,
       };
     });
 
-  leaderboard.sort((a, b) => b.winPct - a.winPct || b.played - a.played);
+  if (sortBy === "points") {
+    leaderboard.sort((a, b) => b.points - a.points || b.winPct - a.winPct || b.played - a.played);
+  } else {
+    leaderboard.sort((a, b) => b.winPct - a.winPct || b.played - a.played);
+  }
 
   return leaderboard;
 }
@@ -153,8 +162,12 @@ export function resolvePeriod(params: PeriodParams): { range: DateRange; label: 
   return { range: {}, label: "All Time" };
 }
 
-export async function getReport(range: DateRange, periodLabel: string): Promise<Report> {
-  const leaderboard = await computeLeaderboard(range);
+export async function getReport(
+  range: DateRange,
+  periodLabel: string,
+  sortBy: LeaderboardSort = "winPct"
+): Promise<Report> {
+  const leaderboard = await computeLeaderboard(range, sortBy);
   const activePlayers = leaderboard.filter((p) => p.played > 0);
   const totalActive = activePlayers.length;
 
