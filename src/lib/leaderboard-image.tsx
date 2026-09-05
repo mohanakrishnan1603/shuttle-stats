@@ -10,12 +10,17 @@ function rankColor(rank: number): string {
   return "#475569";
 }
 
-export function buildLeaderboardImageResponse(report: Report): ImageResponse {
-  const players = report.players.filter((p) => p.played > 0);
-
+export function computeLeaderboardImageSize(report: Report): { width: number; height: number } {
+  const activeCount = report.players.filter((p) => p.played > 0).length;
   const width = 900;
   const rowHeight = 132;
-  const height = 190 + Math.max(players.length, 1) * rowHeight + 60;
+  const height = 190 + Math.max(activeCount, 1) * rowHeight + 60;
+  return { width, height };
+}
+
+export function buildLeaderboardImageResponse(report: Report): ImageResponse {
+  const players = report.players.filter((p) => p.played > 0);
+  const { width, height } = computeLeaderboardImageSize(report);
 
   return new ImageResponse(
     (

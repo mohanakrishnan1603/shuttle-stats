@@ -26,7 +26,10 @@ const ALL = "all";
 
 async function downloadBlob(url: string, filename: string) {
   const res = await fetch(url);
-  if (!res.ok) return;
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? `Download failed (${res.status})`);
+  }
   const blob = await res.blob();
   const objectUrl = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -47,6 +50,7 @@ export default function ReportPage() {
   const [generating, setGenerating] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingLeaderboard, setDownloadingLeaderboard] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [cacheBust, setCacheBust] = useState(0);
   const [query, setQuery] = useState("");
 
@@ -91,17 +95,29 @@ export default function ReportPage() {
   async function handleDownloadPdf() {
     if (!report) return;
     setDownloadingPdf(true);
-    await downloadBlob(
-      `/api/reports/detailed${imgQuery("")}`,
-      `shuttlestats-${report.periodLabel.replace(/\s+/g, "-").toLowerCase()}-report.pdf`
-    );
-    setDownloadingPdf(false);
+    setDownloadError(null);
+    try {
+      await downloadBlob(
+        `/api/reports/detailed${imgQuery("")}`,
+        `shuttlestats-${report.periodLabel.replace(/\s+/g, "-").toLowerCase()}-report.pdf`
+      );
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setDownloadingPdf(false);
+    }
   }
 
   async function handleDownloadLeaderboard() {
     setDownloadingLeaderboard(true);
-    await downloadBlob(`/api/og/leaderboard${imgQuery(`t=${cacheBust}`)}`, "shuttlestats-leaderboard.png");
-    setDownloadingLeaderboard(false);
+    setDownloadError(null);
+    try {
+      await downloadBlob(`/api/og/leaderboard${imgQuery(`t=${cacheBust}`)}`, "shuttlestats-leaderboard.png");
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setDownloadingLeaderboard(false);
+    }
   }
 
   if (loadingMonths) return <LoadingBlock label="Loading…" />;
@@ -167,6 +183,8 @@ export default function ReportPage() {
         <p className="text-sm text-gray-500">No matches recorded for this period.</p>
       )}
 
+      {downloadError && <p className="mb-4 text-sm text-red-600">{downloadError}</p>}
+
       {report && activePlayers.length > 0 && (
         <div className="space-y-8">
           <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
@@ -227,22 +245,27 @@ export default function ReportPage() {
 }
 
 function GeneratedImage({ src, alt }: { src: string; alt: string }) {
-  const [loaded, setLoaded] = useState(false);
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
 
   return (
     <div className="relative min-h-[220px]">
-      {!loaded && (
+      {status !== "loaded" && (
         <div className="absolute inset-0 flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50">
-          <Spinner className="h-5 w-5 text-emerald-600" />
+          {status === "loading" ? (
+            <Spinner className="h-5 w-5 text-emerald-600" />
+          ) : (
+            <span className="text-sm text-red-600">Failed to load image</span>
+          )}
         </div>
       )}
       {/* eslint-disable-next-line @next/next/no-img-element -- dynamically generated PNG, not a next/image asset */}
       <img
         src={src}
         alt={alt}
-        onLoad={() => setLoaded(true)}
+        onLoad={() => setStatus("loaded")}
+        onError={() => setStatus("error")}
         className={`w-full rounded-xl border border-gray-200 shadow-sm transition-opacity duration-200 ${
-          loaded ? "opacity-100" : "opacity-0"
+          status === "loaded" ? "opacity-100" : "opacity-0"
         }`}
       />
     </div>
@@ -251,11 +274,18 @@ function GeneratedImage({ src, alt }: { src: string; alt: string }) {
 
 function PlayerCard({ name, src }: { name: string; src: string }) {
   const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleDownload() {
     setDownloading(true);
-    await downloadBlob(src, `shuttlestats-${name.toLowerCase().replace(/\s+/g, "-")}.png`);
-    setDownloading(false);
+    setError(null);
+    try {
+      await downloadBlob(src, `shuttlestats-${name.toLowerCase().replace(/\s+/g, "-")}.png`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setDownloading(false);
+    }
   }
 
   return (
@@ -271,6 +301,7 @@ function PlayerCard({ name, src }: { name: string; src: string }) {
           {downloading ? "Preparing…" : "Download"}
         </button>
       </div>
+      {error && <p className="mb-1 text-xs text-red-600">{error}</p>}
       <GeneratedImage src={src} alt={name} />
     </div>
   );

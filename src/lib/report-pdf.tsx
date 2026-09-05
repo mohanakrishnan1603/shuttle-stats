@@ -2,6 +2,14 @@ import { Document, Page, View, Text, Image, StyleSheet, renderToBuffer } from "@
 import { Report, DateRange } from "@/lib/stats";
 import { buildInsights } from "@/lib/insights";
 import { avatarColor } from "@/lib/avatar";
+import { computeLeaderboardImageSize } from "@/lib/leaderboard-image";
+
+// A4 content box is 523x770pt after the page's 36pt padding; leave headroom for the
+// section title above the poster so the (non-wrappable) image always fits a single page,
+// however many players it lists. An image taller than the page crashes the whole
+// @react-pdf/renderer process instead of raising a catchable error.
+const POSTER_MAX_WIDTH = 523;
+const POSTER_MAX_HEIGHT = 680;
 
 const styles = StyleSheet.create({
   page: { padding: 36, fontSize: 10, fontFamily: "Helvetica", color: "#1f2937" },
@@ -83,6 +91,10 @@ export async function renderDetailedReportPdf(
   const momentum = active.filter((p) => p.winPctDelta !== null);
   const generatedOn = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
+  const posterSize = computeLeaderboardImageSize(current);
+  const posterScale = Math.min(POSTER_MAX_WIDTH / posterSize.width, POSTER_MAX_HEIGHT / posterSize.height, 1);
+  const posterDisplaySize = { width: posterSize.width * posterScale, height: posterSize.height * posterScale };
+
   const doc = (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -158,7 +170,7 @@ export async function renderDetailedReportPdf(
 
         <Text style={styles.sectionTitle}>Shareable Standings Poster</Text>
         {/* eslint-disable-next-line jsx-a11y/alt-text -- this is @react-pdf/renderer's Image primitive, not an HTML img */}
-        <Image src={posterPng} style={styles.poster} />
+        <Image src={posterPng} style={[styles.poster, posterDisplaySize]} />
       </Page>
     </Document>
   );
