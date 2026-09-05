@@ -2,6 +2,7 @@ import Link from "next/link";
 import { computeAttendance } from "@/lib/stats";
 import { getAttendancePunchline, streakBadgeLabel } from "@/lib/punchlines";
 import AttendanceDatePicker from "@/app/AttendanceDatePicker";
+import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
 
 export const dynamic = "force-dynamic";
 
@@ -95,7 +96,7 @@ export default async function AttendancePage({
               <Link
                 key={day.date}
                 href={`/admin/attendance?date=${day.date}`}
-                className={`flex min-w-[3.5rem] flex-col items-center rounded-lg px-2 py-2 text-center ${
+                className={`relative flex min-w-[3.5rem] flex-col items-center rounded-lg px-2 py-2 text-center ${
                   day.isSelected ? "ring-2 ring-emerald-600" : ""
                 } ${day.isSessionDay ? "bg-emerald-50" : "bg-gray-100"}`}
               >
@@ -104,6 +105,7 @@ export default async function AttendancePage({
                 <span className="text-[10px] text-gray-500">
                   {day.isSessionDay ? `${day.presentCount}/${day.totalPlayers}` : "—"}
                 </span>
+                <LinkPendingSpinner className="absolute right-1 top-1 h-2.5 w-2.5 text-emerald-600" />
               </Link>
             ))}
           </div>

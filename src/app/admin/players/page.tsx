@@ -22,6 +22,7 @@ export default function PlayersPage() {
   const [form, setForm] = useState({ name: "", email: "", mobile: "", includeInReports: true });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const rosterPlayers = players.filter((p) => p.includeInReports !== false);
   const guestPlayers = players.filter((p) => p.includeInReports === false);
@@ -84,7 +85,9 @@ export default function PlayersPage() {
     if (!confirm("Remove this player? Their past match history stays, but they won't be selectable in new matches.")) {
       return;
     }
+    setDeletingId(id);
     await fetch(`/api/players/${id}`, { method: "DELETE" });
+    setDeletingId(null);
     if (editingId === id) resetForm();
     loadPlayers();
   }
@@ -181,7 +184,14 @@ export default function PlayersPage() {
           {rosterPlayers.length > 0 && (
             <ul className="divide-y divide-gray-200 rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
               {rosterPlayers.map((player) => (
-                <PlayerRow key={player._id} player={player} isAdmin={isAdmin} onEdit={startEdit} onDelete={handleDelete} />
+                <PlayerRow
+                  key={player._id}
+                  player={player}
+                  isAdmin={isAdmin}
+                  isDeleting={deletingId === player._id}
+                  onEdit={startEdit}
+                  onDelete={handleDelete}
+                />
               ))}
             </ul>
           )}
@@ -192,7 +202,14 @@ export default function PlayersPage() {
               <p className="mb-2 text-xs text-gray-500">Excluded from the leaderboard and reports.</p>
               <ul className="divide-y divide-gray-200 rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
                 {guestPlayers.map((player) => (
-                  <PlayerRow key={player._id} player={player} isAdmin={isAdmin} onEdit={startEdit} onDelete={handleDelete} />
+                  <PlayerRow
+                    key={player._id}
+                    player={player}
+                    isAdmin={isAdmin}
+                    isDeleting={deletingId === player._id}
+                    onEdit={startEdit}
+                    onDelete={handleDelete}
+                  />
                 ))}
               </ul>
             </div>
@@ -206,11 +223,13 @@ export default function PlayersPage() {
 function PlayerRow({
   player,
   isAdmin,
+  isDeleting,
   onEdit,
   onDelete,
 }: {
   player: Player;
   isAdmin: boolean;
+  isDeleting: boolean;
   onEdit: (player: Player) => void;
   onDelete: (id: string) => void;
 }) {
@@ -227,11 +246,20 @@ function PlayerRow({
         </p>
       </div>
       {isAdmin && (
-        <div className="flex shrink-0 gap-3 text-sm font-medium">
-          <button onClick={() => onEdit(player)} className="text-emerald-600 hover:text-emerald-800">
+        <div className="flex shrink-0 items-center gap-3 text-sm font-medium">
+          <button
+            onClick={() => onEdit(player)}
+            disabled={isDeleting}
+            className="text-emerald-600 hover:text-emerald-800 disabled:opacity-50"
+          >
             Edit
           </button>
-          <button onClick={() => onDelete(player._id)} className="text-red-500 hover:text-red-700">
+          <button
+            onClick={() => onDelete(player._id)}
+            disabled={isDeleting}
+            className="flex items-center gap-1.5 text-red-500 hover:text-red-700 disabled:opacity-50"
+          >
+            {isDeleting && <Spinner className="h-3.5 w-3.5" />}
             Delete
           </button>
         </div>

@@ -24,14 +24,15 @@ function LoginForm() {
       body: JSON.stringify({ username, password }),
     });
 
-    setLoading(false);
-
     if (!res.ok) {
+      setLoading(false);
       const data = await res.json().catch(() => ({}));
       setError(data.error ?? "Login failed");
       return;
     }
 
+    // Keep the button in its loading state through the redirect — it either
+    // unmounts on navigation or the page refreshes, so it never needs to reset.
     router.push(searchParams.get("next") ?? "/admin/matches");
     router.refresh();
   }

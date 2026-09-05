@@ -24,6 +24,18 @@ type MonthOption = { value: string; label: string };
 const CUSTOM = "custom";
 const ALL = "all";
 
+async function downloadBlob(url: string, filename: string) {
+  const res = await fetch(url);
+  if (!res.ok) return;
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(objectUrl);
+}
+
 export default function ReportPage() {
   const [months, setMonths] = useState<MonthOption[]>([]);
   const [period, setPeriod] = useState<string>(ALL);
@@ -33,6 +45,8 @@ export default function ReportPage() {
   const [report, setReport] = useState<Report | null>(null);
   const [loadingMonths, setLoadingMonths] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [downloadingLeaderboard, setDownloadingLeaderboard] = useState(false);
   const [cacheBust, setCacheBust] = useState(0);
   const [query, setQuery] = useState("");
 
@@ -73,6 +87,22 @@ export default function ReportPage() {
     const parts = [query, extra].filter(Boolean);
     return parts.length ? `?${parts.join("&")}` : "";
   };
+
+  async function handleDownloadPdf() {
+    if (!report) return;
+    setDownloadingPdf(true);
+    await downloadBlob(
+      `/api/reports/detailed${imgQuery("")}`,
+      `shuttlestats-${report.periodLabel.replace(/\s+/g, "-").toLowerCase()}-report.pdf`
+    );
+    setDownloadingPdf(false);
+  }
+
+  async function handleDownloadLeaderboard() {
+    setDownloadingLeaderboard(true);
+    await downloadBlob(`/api/og/leaderboard${imgQuery(`t=${cacheBust}`)}`, "shuttlestats-leaderboard.png");
+    setDownloadingLeaderboard(false);
+  }
 
   if (loadingMonths) return <LoadingBlock label="Loading…" />;
 
@@ -150,13 +180,14 @@ export default function ReportPage() {
                   and highlights.
                 </p>
               </div>
-              <a
-                href={`/api/reports/detailed${imgQuery("")}`}
-                download={`shuttlestats-${report.periodLabel.replace(/\s+/g, "-").toLowerCase()}-report.pdf`}
-                className="shrink-0 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+              <button
+                onClick={handleDownloadPdf}
+                disabled={downloadingPdf}
+                className="flex shrink-0 items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
               >
-                Download PDF
-              </a>
+                {downloadingPdf && <Spinner className="h-4 w-4" />}
+                {downloadingPdf ? "Preparing…" : "Download PDF"}
+              </button>
             </div>
           </div>
 
@@ -165,49 +196,82 @@ export default function ReportPage() {
               <h2 className="text-sm font-semibold text-gray-700">
                 Leaderboard image — {report.periodLabel}
               </h2>
-              <a
-                href={`/api/og/leaderboard${imgQuery(`t=${cacheBust}`)}`}
-                download="shuttlestats-leaderboard.png"
-                className="text-sm font-medium text-emerald-600 hover:text-emerald-800"
+              <button
+                onClick={handleDownloadLeaderboard}
+                disabled={downloadingLeaderboard}
+                className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 hover:text-emerald-800 disabled:opacity-50"
               >
-                Download
-              </a>
+                {downloadingLeaderboard && <Spinner className="h-3.5 w-3.5" />}
+                {downloadingLeaderboard ? "Preparing…" : "Download"}
+              </button>
             </div>
-            {/* eslint-disable-next-line @next/next/no-img-element -- dynamically generated PNG, not a next/image asset */}
-            <img
-              src={`/api/og/leaderboard${imgQuery(`t=${cacheBust}`)}`}
-              alt="Leaderboard"
-              className="w-full rounded-xl border border-gray-200 shadow-sm"
-            />
+            <GeneratedImage src={`/api/og/leaderboard${imgQuery(`t=${cacheBust}`)}`} alt="Leaderboard" />
           </div>
 
           <div>
             <h2 className="mb-2 text-sm font-semibold text-gray-700">Individual player cards</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {activePlayers.map((player) => (
-                <div key={player.playerId}>
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">{player.name}</span>
-                    <a
-                      href={`/api/og/player/${player.playerId}${imgQuery(`t=${cacheBust}`)}`}
-                      download={`shuttlestats-${player.name.toLowerCase().replace(/\s+/g, "-")}.png`}
-                      className="text-sm font-medium text-emerald-600 hover:text-emerald-800"
-                    >
-                      Download
-                    </a>
-                  </div>
-                  {/* eslint-disable-next-line @next/next/no-img-element -- dynamically generated PNG, not a next/image asset */}
-                  <img
-                    src={`/api/og/player/${player.playerId}${imgQuery(`t=${cacheBust}`)}`}
-                    alt={player.name}
-                    className="w-full rounded-xl border border-gray-200 shadow-sm"
-                  />
-                </div>
+                <PlayerCard
+                  key={player.playerId}
+                  name={player.name}
+                  src={`/api/og/player/${player.playerId}${imgQuery(`t=${cacheBust}`)}`}
+                />
               ))}
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function GeneratedImage({ src, alt }: { src: string; alt: string }) {
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <div className="relative min-h-[220px]">
+      {!loaded && (
+        <div className="absolute inset-0 flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50">
+          <Spinner className="h-5 w-5 text-emerald-600" />
+        </div>
+      )}
+      {/* eslint-disable-next-line @next/next/no-img-element -- dynamically generated PNG, not a next/image asset */}
+      <img
+        src={src}
+        alt={alt}
+        onLoad={() => setLoaded(true)}
+        className={`w-full rounded-xl border border-gray-200 shadow-sm transition-opacity duration-200 ${
+          loaded ? "opacity-100" : "opacity-0"
+        }`}
+      />
+    </div>
+  );
+}
+
+function PlayerCard({ name, src }: { name: string; src: string }) {
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownload() {
+    setDownloading(true);
+    await downloadBlob(src, `shuttlestats-${name.toLowerCase().replace(/\s+/g, "-")}.png`);
+    setDownloading(false);
+  }
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-sm font-medium text-gray-700">{name}</span>
+        <button
+          onClick={handleDownload}
+          disabled={downloading}
+          className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 hover:text-emerald-800 disabled:opacity-50"
+        >
+          {downloading && <Spinner className="h-3.5 w-3.5" />}
+          {downloading ? "Preparing…" : "Download"}
+        </button>
+      </div>
+      <GeneratedImage src={src} alt={name} />
     </div>
   );
 }

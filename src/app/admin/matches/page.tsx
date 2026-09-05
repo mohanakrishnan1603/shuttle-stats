@@ -41,6 +41,7 @@ export default function MatchesPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [dateFilter, setDateFilter] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function loadData() {
     const [playersRes, matchesRes] = await Promise.all([
@@ -146,7 +147,9 @@ export default function MatchesPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this match result? This will affect the leaderboard.")) return;
+    setDeletingId(id);
     await fetch(`/api/matches/${id}`, { method: "DELETE" });
+    setDeletingId(null);
     if (editingMatchId === id) handleReset();
     loadData();
   }
@@ -372,16 +375,18 @@ export default function MatchesPage() {
                   <button
                     onClick={() => startEdit(match)}
                     aria-label="Edit match"
-                    className="text-emerald-600 hover:text-emerald-800"
+                    disabled={deletingId === match._id}
+                    className="text-emerald-600 hover:text-emerald-800 disabled:opacity-50"
                   >
                     <EditIcon />
                   </button>
                   <button
                     onClick={() => handleDelete(match._id)}
                     aria-label="Delete match"
-                    className="text-red-500 hover:text-red-700"
+                    disabled={deletingId === match._id}
+                    className="text-red-500 hover:text-red-700 disabled:opacity-50"
                   >
-                    <DeleteIcon />
+                    {deletingId === match._id ? <Spinner className="h-4 w-4" /> : <DeleteIcon />}
                   </button>
                 </div>
               )}
