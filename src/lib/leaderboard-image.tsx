@@ -13,7 +13,7 @@ function rankColor(rank: number): string {
 export function computeLeaderboardImageSize(report: Report): { width: number; height: number } {
   const activeCount = report.players.filter((p) => p.played > 0).length;
   const width = 900;
-  const rowHeight = 132;
+  const rowHeight = 152;
   const height = 190 + Math.max(activeCount, 1) * rowHeight + 60;
   return { width, height };
 }
@@ -107,6 +107,9 @@ export function buildLeaderboardImageResponse(report: Report): ImageResponse {
                 </div>
                 <div style={{ display: "flex", fontSize: 17, color: "#4ade80", fontWeight: 600, marginTop: 4 }}>
                   {player.played}P · {player.won}W · {player.winPct}%
+                </div>
+                <div style={{ display: "flex", fontSize: 15, color: "#facc15", fontWeight: 700, marginTop: 4 }}>
+                  {player.points} pts
                 </div>
                 {player.isMostActive ? (
                   <div style={{ display: "flex", fontSize: 14, color: "#facc15", marginTop: 6 }}>

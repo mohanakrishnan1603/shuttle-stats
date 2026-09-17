@@ -98,7 +98,10 @@ export async function GET(
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-            <div style={{ display: "flex", fontSize: 18, opacity: 0.75 }}>Win Rate</div>
+            <div style={{ display: "flex", fontSize: 20, fontWeight: 700, color: "#facc15" }}>
+              {stats.played === 0 ? "—" : `${stats.points} pts`}
+            </div>
+            <div style={{ display: "flex", fontSize: 18, opacity: 0.75, marginTop: 8 }}>Win Rate</div>
             <div style={{ display: "flex", fontSize: 64, fontWeight: 800, color: "#4ade80" }}>
               {stats.played === 0 ? "—" : `${stats.winPct}%`}
             </div>

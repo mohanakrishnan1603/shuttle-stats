@@ -21,6 +21,7 @@ const styles = StyleSheet.create({
   barName: { width: 90, fontSize: 10, fontWeight: 700 },
   barTrack: { flex: 1, height: 14, backgroundColor: "#e5e7eb", borderRadius: 7, marginHorizontal: 8 },
   barPct: { width: 40, fontSize: 10, textAlign: "right", color: "#059669", fontWeight: 700 },
+  barPoints: { width: 50, fontSize: 10, textAlign: "right", color: "#059669", fontWeight: 700 },
   table: { borderWidth: 1, borderColor: "#d1d5db", borderRadius: 4, overflow: "hidden" },
   tableHeaderRow: { flexDirection: "row", backgroundColor: "#c8e6c9" },
   tableRow: { flexDirection: "row", borderTopWidth: 1, borderTopColor: "#e5e7eb" },
@@ -43,6 +44,7 @@ const COLS = {
   played: { width: 55 },
   won: { width: 45 },
   lost: { width: 45 },
+  points: { width: 50 },
   winPct: { width: 55 },
   lossPct: { width: 55 },
 };
@@ -58,6 +60,7 @@ function PeriodTable({ players, mode }: { players: Report["players"]; mode: "per
         <Text style={[styles.th, COLS.played]}>Played</Text>
         <Text style={[styles.th, COLS.won]}>Won</Text>
         <Text style={[styles.th, COLS.lost]}>Lost</Text>
+        <Text style={[styles.th, COLS.points]}>Points</Text>
         <Text style={[styles.th, COLS.winPct]}>Win %</Text>
         <Text style={[styles.th, COLS.lossPct]}>Loss %</Text>
       </View>
@@ -70,6 +73,7 @@ function PeriodTable({ players, mode }: { players: Report["players"]; mode: "per
             <Text style={[styles.td, COLS.played]}>{p.played}</Text>
             <Text style={[styles.td, COLS.won]}>{p.won}</Text>
             <Text style={[styles.td, COLS.lost]}>{p.lost}</Text>
+            <Text style={[styles.td, COLS.points]}>{p.points}</Text>
             <Text style={[styles.td, COLS.winPct]}>{p.played === 0 ? "—" : `${p.winPct}%`}</Text>
             <Text style={[styles.td, COLS.lossPct]}>{p.played === 0 ? "—" : `${lossPct}%`}</Text>
           </View>
@@ -87,6 +91,7 @@ export async function renderDetailedReportPdf(
   posterPng: Buffer
 ): Promise<Buffer> {
   const active = current.players.filter((p) => p.played > 0);
+  const maxPoints = Math.max(...active.map((p) => p.points), 1);
   const insights = await buildInsights(current, range, monthValue);
   const momentum = active.filter((p) => p.winPctDelta !== null);
   const generatedOn = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
@@ -122,6 +127,31 @@ export async function renderDetailedReportPdf(
               <Text style={styles.barPct}>{p.winPct}%</Text>
             </View>
           ))
+        )}
+
+        <Text style={styles.sectionTitle}>Points Table — {current.periodLabel}</Text>
+        <Text style={styles.subtitle}>Win = 2 pts, Loss = 1 pt. Ranked by total points.</Text>
+        {active.length === 0 ? (
+          <Text style={styles.insightDetail}>No matches recorded for this period yet.</Text>
+        ) : (
+          [...active]
+            .sort((a, b) => b.points - a.points || b.winPct - a.winPct || b.played - a.played)
+            .map((p) => (
+              <View style={styles.barRow} key={p.playerId} wrap={false}>
+                <Text style={styles.barName}>{p.name}</Text>
+                <View style={styles.barTrack}>
+                  <View
+                    style={{
+                      height: 14,
+                      borderRadius: 7,
+                      width: `${Math.max((p.points / maxPoints) * 100, 2)}%`,
+                      backgroundColor: avatarColor(p.playerId),
+                    }}
+                  />
+                </View>
+                <Text style={styles.barPoints}>{p.points} pts</Text>
+              </View>
+            ))
         )}
 
         <Text style={styles.sectionTitle}>Player Analysis — {current.periodLabel}</Text>

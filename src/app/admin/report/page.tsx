@@ -10,6 +10,7 @@ type PlayerStats = {
   won: number;
   lost: number;
   winPct: number;
+  points: number;
   rank: number;
   punchline: string;
 };
@@ -194,8 +195,8 @@ export default function ReportPage() {
                   Detailed Report — {report.periodLabel}
                 </h2>
                 <p className="text-xs text-gray-500">
-                  Full PDF: win % chart, player analysis, momentum vs last period, all-time summary,
-                  and highlights.
+                  Full PDF: win % chart, points table, player analysis, momentum vs last period,
+                  all-time summary, and highlights.
                 </p>
               </div>
               <button
@@ -207,6 +208,13 @@ export default function ReportPage() {
                 {downloadingPdf ? "Preparing…" : "Download PDF"}
               </button>
             </div>
+          </div>
+
+          <div>
+            <h2 className="mb-2 text-sm font-semibold text-gray-700">
+              Points Table — {report.periodLabel}
+            </h2>
+            <PointsTable players={activePlayers} />
           </div>
 
           <div>
@@ -240,6 +248,56 @@ export default function ReportPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function PointsTable({ players }: { players: PlayerStats[] }) {
+  const ranked = [...players].sort(
+    (a, b) => b.points - a.points || b.winPct - a.winPct || b.played - a.played
+  );
+
+  return (
+    <div className="overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200">
+      {/* Mobile: stacked list */}
+      <ul className="divide-y divide-gray-100 sm:hidden">
+        {ranked.map((player, i) => (
+          <li key={player.playerId} className="flex items-center justify-between px-4 py-3">
+            <span className="truncate font-medium text-gray-900">
+              {i + 1}. {player.name}
+            </span>
+            <span className="shrink-0 font-semibold text-emerald-700">{player.points} pts</span>
+          </li>
+        ))}
+      </ul>
+
+      {/* sm and up: full table */}
+      <table className="hidden w-full text-left text-sm sm:table">
+        <thead className="bg-gray-100 text-xs uppercase tracking-wide text-gray-500">
+          <tr>
+            <th className="px-3 py-2 sm:px-4">#</th>
+            <th className="px-3 py-2 sm:px-4">Player</th>
+            <th className="px-2 py-2 text-center sm:px-3">P</th>
+            <th className="px-2 py-2 text-center sm:px-3">W</th>
+            <th className="px-2 py-2 text-center sm:px-3">L</th>
+            <th className="px-3 py-2 text-right sm:px-4">Pts</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {ranked.map((player, i) => (
+            <tr key={player.playerId}>
+              <td className="px-3 py-3 text-gray-500 sm:px-4">{i + 1}</td>
+              <td className="px-3 py-3 font-medium text-gray-900 sm:px-4">{player.name}</td>
+              <td className="px-2 py-3 text-center text-gray-600 sm:px-3">{player.played}</td>
+              <td className="px-2 py-3 text-center text-gray-600 sm:px-3">{player.won}</td>
+              <td className="px-2 py-3 text-center text-gray-600 sm:px-3">{player.lost}</td>
+              <td className="px-3 py-3 text-right font-semibold text-emerald-700 sm:px-4">
+                {player.points}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
