@@ -27,6 +27,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <NavLink href="/admin/players">Players</NavLink>
               <NavLink href="/admin/attendance">Attendance</NavLink>
               {isAdmin && <NavLink href="/admin/report">Report</NavLink>}
+              {isAdmin && <NavLink href="/admin/schedule">Schedule</NavLink>}
             </nav>
             <LogoutButton />
           </div>

@@ -16,6 +16,23 @@ export type PlayerStats = {
 
 export type LeaderboardSort = "winPct" | "points";
 
+// Matches entered before this instant keep the old flat win/loss points.
+// Keyed off `createdAt` (when the record was saved), not the game `date`
+// (which can be backdated), so editing an old match later never upgrades it.
+const MARGIN_POINTS_CUTOVER = new Date("2026-11-01T00:00:00.000Z");
+
+function calculateMatchPoints(
+  winnerScore?: number,
+  loserScore?: number
+): { winner: number; loser: number } {
+  if (winnerScore === undefined || loserScore === undefined) {
+    return { winner: 2, loser: 1 };
+  }
+  const margin = Math.abs(winnerScore - loserScore);
+  const loser = margin <= 5 ? 2.5 : margin <= 10 ? 2 : margin <= 15 ? 1.5 : 1;
+  return { winner: 3, loser };
+}
+
 export type EnrichedPlayerStats = PlayerStats & {
   rank: number;
   isMostActive: boolean;
@@ -45,14 +62,20 @@ export async function computeLeaderboard(range?: DateRange, sortBy: LeaderboardS
     Match.find(query).lean<MatchDoc[]>(),
   ]);
 
-  const totals = new Map<string, { played: number; won: number }>();
+  const totals = new Map<string, { played: number; won: number; points: number }>();
   for (const player of players) {
-    totals.set(String(player._id), { played: 0, won: 0 });
+    totals.set(String(player._id), { played: 0, won: 0, points: 0 });
   }
 
   for (const match of matches) {
     const winningTeam = match.winner === "A" ? match.teamA : match.teamB;
     const losingTeam = match.winner === "A" ? match.teamB : match.teamA;
+    const winnerScore = match.winner === "A" ? match.teamAScore : match.teamBScore;
+    const loserScore = match.winner === "A" ? match.teamBScore : match.teamAScore;
+    const useMargin = match.createdAt && match.createdAt >= MARGIN_POINTS_CUTOVER;
+    const { winner: winnerPoints, loser: loserPoints } = useMargin
+      ? calculateMatchPoints(winnerScore, loserScore)
+      : { winner: 2, loser: 1 };
 
     for (const playerId of winningTeam) {
       const key = String(playerId);
@@ -60,6 +83,7 @@ export async function computeLeaderboard(range?: DateRange, sortBy: LeaderboardS
       if (entry) {
         entry.played += 1;
         entry.won += 1;
+        entry.points += winnerPoints;
       }
     }
     for (const playerId of losingTeam) {
@@ -67,6 +91,7 @@ export async function computeLeaderboard(range?: DateRange, sortBy: LeaderboardS
       const entry = totals.get(key);
       if (entry) {
         entry.played += 1;
+        entry.points += loserPoints;
       }
     }
   }
@@ -75,10 +100,10 @@ export async function computeLeaderboard(range?: DateRange, sortBy: LeaderboardS
     .filter((player) => player.includeInReports !== false)
     .map((player) => {
       const key = String(player._id);
-      const entry = totals.get(key) ?? { played: 0, won: 0 };
+      const entry = totals.get(key) ?? { played: 0, won: 0, points: 0 };
       const lost = entry.played - entry.won;
       const winPct = entry.played === 0 ? 0 : Math.round((entry.won / entry.played) * 1000) / 10;
-      const points = entry.won * 2 + lost;
+      const points = entry.points;
       return {
         playerId: key,
         name: player.name,

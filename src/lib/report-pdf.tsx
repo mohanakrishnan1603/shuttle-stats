@@ -130,7 +130,9 @@ export async function renderDetailedReportPdf(
         )}
 
         <Text style={styles.sectionTitle}>Points Table — {current.periodLabel}</Text>
-        <Text style={styles.subtitle}>Win = 2 pts, Loss = 1 pt. Ranked by total points.</Text>
+        <Text style={styles.subtitle}>
+          Win = 3 pts. Loss = 2.5/2/1.5/1 pts by score margin (older matches use flat 2/1). Ranked by total points.
+        </Text>
         {active.length === 0 ? (
           <Text style={styles.insightDetail}>No matches recorded for this period yet.</Text>
         ) : (
