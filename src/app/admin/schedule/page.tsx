@@ -11,7 +11,7 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [courts, setCourts] = useState(1);
-  const [rounds, setRounds] = useState(4);
+  const [matchesPerCourt, setMatchesPerCourt] = useState(4);
   const [schedule, setSchedule] = useState<GeneratedSchedule | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,11 +40,11 @@ export default function SchedulePage() {
   const activeCount = Math.floor(Math.min(selectedPlayers.length, courts * 4) / 4) * 4;
   const estimatedMatches =
     selectedPlayers.length > 0 && activeCount > 0
-      ? ((activeCount * rounds) / selectedPlayers.length).toFixed(1)
+      ? ((activeCount * matchesPerCourt) / selectedPlayers.length).toFixed(1)
       : null;
 
   function runGenerate() {
-    const result = generateSchedule(selectedPlayers, courts, rounds);
+    const result = generateSchedule(selectedPlayers, courts, matchesPerCourt);
     if ("error" in result) {
       setError(result.error);
       setSchedule(null);
@@ -112,14 +112,14 @@ export default function SchedulePage() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-semibold text-gray-700">Rounds</label>
+                <label className="mb-1 block text-sm font-semibold text-gray-700">Matches per court</label>
                 <input
                   type="number"
                   inputMode="numeric"
                   min={1}
-                  value={rounds}
+                  value={matchesPerCourt}
                   onChange={(e) => {
-                    setRounds(Math.max(1, Number(e.target.value) || 1));
+                    setMatchesPerCourt(Math.max(1, Number(e.target.value) || 1));
                     setSchedule(null);
                   }}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base"
@@ -148,11 +148,11 @@ export default function SchedulePage() {
 
           {schedule && (
             <div className="space-y-4">
-              {schedule.rounds.map((round) => (
-                <div key={round.round} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
-                  <p className="mb-2 text-sm font-semibold text-gray-700">Round {round.round}</p>
+              {schedule.slots.map((slot) => (
+                <div key={slot.slot} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200">
+                  <p className="mb-2 text-sm font-semibold text-gray-700">Slot {slot.slot}</p>
                   <ul className="space-y-1 text-sm text-gray-700">
-                    {round.courts.map((court) => (
+                    {slot.courts.map((court) => (
                       <li key={court.court}>
                         <span className="font-medium text-gray-500">Court {court.court}:</span>{" "}
                         {court.teamA.map((p) => p.name).join(" & ")}
@@ -161,9 +161,9 @@ export default function SchedulePage() {
                       </li>
                     ))}
                   </ul>
-                  {round.resting.length > 0 && (
+                  {slot.resting.length > 0 && (
                     <p className="mt-2 text-xs text-gray-400">
-                      Resting: {round.resting.map((p) => p.name).join(", ")}
+                      Resting: {slot.resting.map((p) => p.name).join(", ")}
                     </p>
                   )}
                 </div>
