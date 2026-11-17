@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/auth";
 
-const PROTECTED_API_PREFIXES = ["/api/players", "/api/matches", "/api/stats", "/api/months", "/api/og", "/api/reports"];
+const PROTECTED_API_PREFIXES = ["/api/players", "/api/matches", "/api/stats", "/api/months", "/api/og", "/api/reports", "/api/attendance"];
 const PLAYERS_OR_MATCHES_API_PREFIXES = ["/api/players", "/api/matches"];
 
 export async function proxy(request: NextRequest) {
@@ -53,5 +53,6 @@ export const config = {
     "/api/months/:path*",
     "/api/og/:path*",
     "/api/reports/:path*",
+    "/api/attendance/:path*",
   ],
 };

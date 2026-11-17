@@ -3,6 +3,7 @@ import { computeAttendance } from "@/lib/stats";
 import { getAttendancePunchline, streakBadgeLabel } from "@/lib/punchlines";
 import AttendanceDatePicker from "@/app/AttendanceDatePicker";
 import { LinkPendingSpinner } from "@/components/LinkPendingSpinner";
+import AttendanceSummaryExport from "@/app/admin/attendance/AttendanceSummaryExport";
 
 export const dynamic = "force-dynamic";
 
@@ -215,6 +216,8 @@ export default async function AttendancePage({
           </div>
         </>
       )}
+
+      {report.totalPlayers > 0 && <AttendanceSummaryExport />}
     </div>
   );
 }

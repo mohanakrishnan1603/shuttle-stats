@@ -396,6 +396,74 @@ function buildWeekOverview(
   return overview;
 }
 
+export type AttendanceSummaryRow = {
+  playerId: string;
+  name: string;
+  matchesPlayed: number;
+  daysPresent: number;
+  totalDays: number;
+  attendancePct: number;
+};
+
+export type AttendanceSummaryReport = {
+  periodLabel: string;
+  totalDays: number;
+  rows: AttendanceSummaryRow[];
+};
+
+export async function computeAttendanceSummary(range: DateRange, periodLabel: string): Promise<AttendanceSummaryReport> {
+  await connectToDatabase();
+
+  const dateFilter: Record<string, Date> = {};
+  if (range.start) dateFilter.$gte = range.start;
+  if (range.end) dateFilter.$lte = range.end;
+  const query = Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {};
+
+  const [players, matches] = await Promise.all([
+    Player.find().sort({ name: 1 }).lean(),
+    Match.find(query).lean<MatchDoc[]>(),
+  ]);
+
+  const presentByDay = new Map<string, Set<string>>();
+  const matchesPlayed = new Map<string, number>();
+  for (const player of players) {
+    matchesPlayed.set(String(player._id), 0);
+  }
+
+  for (const match of matches) {
+    const dayKey = toDayKey(match.date);
+    const dayPresent = presentByDay.get(dayKey) ?? new Set<string>();
+    for (const playerId of [...match.teamA, ...match.teamB]) {
+      const key = String(playerId);
+      dayPresent.add(key);
+      matchesPlayed.set(key, (matchesPlayed.get(key) ?? 0) + 1);
+    }
+    presentByDay.set(dayKey, dayPresent);
+  }
+
+  const totalDays = presentByDay.size;
+
+  const rows: AttendanceSummaryRow[] = players.map((player) => {
+    const playerId = String(player._id);
+    let daysPresent = 0;
+    for (const dayPresent of presentByDay.values()) {
+      if (dayPresent.has(playerId)) daysPresent += 1;
+    }
+    const attendancePct = totalDays === 0 ? 0 : Math.round((daysPresent / totalDays) * 1000) / 10;
+
+    return {
+      playerId,
+      name: player.name,
+      matchesPlayed: matchesPlayed.get(playerId) ?? 0,
+      daysPresent,
+      totalDays,
+      attendancePct,
+    };
+  });
+
+  return { periodLabel, totalDays, rows };
+}
+
 export async function computeAttendance(selectedDate?: string): Promise<AttendanceReport> {
   await connectToDatabase();
 
